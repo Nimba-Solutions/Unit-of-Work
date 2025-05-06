@@ -10,7 +10,6 @@ This implementation aims to provide a lightweight alternative with zero dependen
 
 - Share transactions across multiple services
 - Handle complex relationships between records
-- Manage nested transactions with partial success
 - Keep your code type-safe and maintainable
 
 ## 🔄 Unit of Work Pattern Flow
