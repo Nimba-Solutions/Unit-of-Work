@@ -13,16 +13,6 @@ This implementation aims to provide a lightweight alternative with zero dependen
 - Manage nested transactions with partial success
 - Keep your code type-safe and maintainable
 
-## 📁 Project Structure
-
-```
-📁 unit-of-work/
- ├── 📁 force-app/          # Salesforce source code
- │   └── 📁 main/default/   # Main source code directory
- ├── 📁 orgs/               # Scratch org configurations
- └── 📄 cumulusci.yml       # Project configuration
-```
-
 ## 🔄 Unit of Work Pattern Flow
 
 ```mermaid
@@ -82,6 +72,17 @@ sequenceDiagram
     else On Success
         UnitOfWork-->>Client: Success
     end
+```
+
+## 📁 Project Structure
+
+```
+📁 unit-of-work/
+ ├── 📁 orgs/                  # Scratch org configurations
+ ├── 📁 force-app/          
+ │   └── 📁 main/default/      # Main source code directory
+ ├── 📁 unpackaged/examples    # A few basic usage patterns 
+ └── 📄 cumulusci.yml          # Nuts and bolts
 ```
 
 ## 📖 Usage Patterns
