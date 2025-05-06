@@ -81,15 +81,15 @@ sequenceDiagram
 // Create a new UnitOfWork instance
 UnitOfWork uow = new UnitOfWork();
 
-// Register new records
+// Stage some new records
 Account acc = new Account(Name = 'Test Account');
 Contact con = new Contact(LastName = 'Test Contact', Email = 'test@example.com');
 
-// Register the records
+// Register the records to uow
 uow.registerNew(acc);
 uow.registerNew(con);
 
-// Set up relationships
+// ... maybe throw in some relationships
 uow.registerRelationship(con, Contact.AccountId, acc);
 
 // Commit all changes
