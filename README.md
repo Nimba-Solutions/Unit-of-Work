@@ -10,7 +10,7 @@ While powerful, Apex Commons can sometimes be cumbersome to use in smaller proje
 
 This implementation provides a lightweight alternative with zero dependencies, making it easier to:
 
-- Introduce additional safety to DML operations
+- Introduce additional safety (e.g. validation, rollback) to DML operations
 - Share transactions across multiple services
 - Handle complex relationships between records
 - Keep your code type-safe and maintainable
