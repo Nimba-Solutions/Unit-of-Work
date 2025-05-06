@@ -1,6 +1,15 @@
 # Unit-of-Work
 
-A Salesforce project that demonstrates the implementation of the Unit of Work pattern, providing a robust way to manage database transactions and operations. This project includes both API and UI-based implementations for managing Contact records, along with comprehensive test coverage.
+This project demonstrates the implementation of the Unit of Work pattern, providing a robust way to manage database transactions and operations.
+
+## Motivation
+
+The Unit of Work pattern was popularized by the excellent [Apex Commons](https://github.com/apex-enterprise-patterns/fflib-apex-common/blob/master/sfdx-source/apex-common/main/classes/fflib_SObjectUnitOfWork.cls), but we often find it difficult to use in smaller projects, projects with significant legacy code, or when we need more control over transaction boundaries. This implementation provides a lightweight alternative with zero dependencies, making it easier to:
+
+- Share transactions across multiple services
+- Handle complex relationships between records
+- Manage nested transactions with partial success
+- Keep your code type-safe and maintainable
 
 ## 🔄 Unit of Work Pattern Flow
 
