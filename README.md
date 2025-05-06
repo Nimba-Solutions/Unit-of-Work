@@ -168,59 +168,30 @@ The UnitOfWork class provides hooks for custom validation and post-processing.
 
 #### Before-Commit Hook Registration
 Use this when you need to validate records or check permissions before they're committed to the database.
-For example, ensuring all new accounts have required fields and the user has proper permissions.
 
 ```java
-public class AccountService {
-    @Override
-    protected Boolean beforeCommit() {
-        if (newRecords.containsKey(Account.SObjectType)) {
-            // Check CRUD permissions
-            if (!Account.SObjectType.getDescribe().isCreateable()) {
-                throw new UnitOfWorkException('User does not have permission to create Accounts');
-            }
-            
-            // Check field-level permissions
-            if (!Account.Name.getDescribe().isCreateable()) {
-                throw new UnitOfWorkException('User does not have permission to set Account Name');
-            }
-            
-            // Business validation
-            for (SObject record : newRecords.get(Account.SObjectType)) {
-                Account acc = (Account)record;
-                if (acc.Type == 'Enterprise' && acc.BillingCountry == null) {
-                    throw new UnitOfWorkException('Enterprise accounts require a billing country');
-                }
-            }
+UnitOfWork uow = new UnitOfWork() {
+    protected void beforeCommit() {
+        if (!Account.SObjectType.getDescribe().isCreateable()) {
+            throw new UnitOfWorkException('Insufficient permissions to create Account');
         }
-        return true;
     }
-}
+};
 ```
 
 #### After-Commit Hook Registration
 Use this when you need to perform actions after records are successfully committed.
-For example, publishing platform events for new opportunities to trigger async processing.
 
 ```java
-public class OpportunityService {
-    @Override
+UnitOfWork uow = new UnitOfWork() {
     protected void afterCommit() {
         if (saveResults.containsKey('Insert_Opportunity')) {
-            List<OpportunityCreated__e> events = new List<OpportunityCreated__e>();
-            for (DatabaseResult result : saveResults.get('Insert_Opportunity')) {
-                if (result.isSuccess()) {
-                    events.add(new OpportunityCreated__e(
-                        RecordId__c = result.getId()
-                    ));
-                }
-            }
-            if (!events.isEmpty()) {
-                EventBus.publish(events);
-            }
+            EventBus.publish(new List<OpportunityCreated__e>{
+                new OpportunityCreated__e(RecordId__c = saveResults.get('Insert_Opportunity')[0].getId())
+            });
         }
     }
-}
+};
 ```
 
 ## ⚠️ Error Handling
