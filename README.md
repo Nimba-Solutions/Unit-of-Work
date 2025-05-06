@@ -4,10 +4,11 @@ This project demonstrates the implementation of the Unit of Work pattern, provid
 
 ## Motivation
 
-The Unit of Work pattern was popularized by the excellent [Apex Commons](https://github.com/apex-enterprise-patterns/fflib-apex-common/blob/master/sfdx-source/apex-common/main/classes/fflib_SObjectUnitOfWork.cls), but we often find it difficult to use in smaller projects, projects with significant legacy code, or when we need more control over transaction boundaries. 
+The Unit of Work pattern was popularized by the excellent [Apex Commons](https://github.com/apex-enterprise-patterns/fflib-apex-common/blob/master/sfdx-source/apex-common/main/classes/fflib_SObjectUnitOfWork.cls), but it can sometimes be cumbersome to use in smaller projects, projects with significant legacy core, or projects that are generally misaligned with `fflib`s  imposed opinionation. 
 
 This implementation aims to provide a lightweight alternative with zero dependencies, making it easier to:
 
+- Introduce additional safety to DML operations
 - Share transactions across multiple services
 - Handle complex relationships between records
 - Keep your code type-safe and maintainable
