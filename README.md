@@ -1,14 +1,5 @@
 # Unit-of-Work
 
-```
- _   _       _ _         ____        __         _    
-| | | |_ __ (_) |_ ___  / _\ \      / /__  _ __| | __
-| | | | '_ \| | __/ _ \| |_ \ \ /\ / / _ \| '__| |/ /
-| |_| | | | | | || (_) |  _| \ V  V / (_) | |  |   < 
- \___/|_| |_|_|\__\___/|_|    \_/\_/ \___/|_|  |_|\_\
-                                                  
-```
-
 A Salesforce project that demonstrates the implementation of the Unit of Work pattern, providing a robust way to manage database transactions and operations. This project includes both API and UI-based implementations for managing Contact records, along with comprehensive test coverage.
 
 ## 🔄 Unit of Work Pattern Flow
