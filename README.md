@@ -13,6 +13,16 @@ This implementation aims to provide a lightweight alternative with zero dependen
 - Manage nested transactions with partial success
 - Keep your code type-safe and maintainable
 
+## 📁 Project Structure
+
+```
+📁 unit-of-work/
+ ├── 📁 force-app/          # Salesforce source code
+ │   └── 📁 main/default/   # Main source code directory
+ ├── 📁 orgs/               # Scratch org configurations
+ └── 📄 cumulusci.yml       # Project configuration
+```
+
 ## 🔄 Unit of Work Pattern Flow
 
 ```mermaid
@@ -154,6 +164,12 @@ root.commitWork();
 
 The `UnitOfWorkException` is a special exception class that provides detailed error information through an exception tree structure. This is particularly useful when multiple errors occur during a transaction.
 
+Key features of the `UnitOfWorkException`:
+1. **Exception Tree**: Maintains a hierarchical structure of errors
+2. **Detailed Context**: Each error includes the operation type and affected record
+3. **Transaction Safety**: All errors are captured before rollback
+4. **Debug Support**: Includes a handful of specialized logging utilities for detailed error inspection
+
 ### Exception Tree Structure
 ```java
 try {
@@ -252,32 +268,6 @@ Which produces:
     ]
   ]
 }
-```
-
-Key features of the UnitOfWorkException:
-1. **Exception Tree**: Maintains a hierarchical structure of errors
-2. **Detailed Context**: Each error includes the operation type and affected record
-3. **Transaction Safety**: All errors are captured before rollback
-4. **Debug Support**: Includes logging utilities for detailed error inspection
-5. **JSON Support**: Provides structured JSON output for external integration
-6. **Tree Visualization**: Includes ASCII tree visualization for debugging
-
-## 🚀 Features
-
-- ⚡ Implementation of the Unit of Work pattern for Salesforce
-- 👥 Contact management functionality
-- 🤖 Automated testing using Robot Framework
-- 🔄 Both API and UI-based operations
-- ✅ Comprehensive test coverage (75% minimum required)
-
-## 📁 Project Structure
-
-```
-📁 unit-of-work/
- ├── 📁 force-app/          # Salesforce source code
- │   └── 📁 main/default/   # Main source code directory
- ├── 📁 orgs/               # Scratch org configurations
- └── 📄 cumulusci.yml       # Project configuration
 ```
 
 ## 🏗️ Development Setup
