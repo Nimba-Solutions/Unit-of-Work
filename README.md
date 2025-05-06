@@ -165,7 +165,8 @@ root.commitWork();
 
 ## ⚠️ Error Handling
 
-The `UnitOfWorkException` is a special exception class that provides detailed error information through an exception tree structure. This is particularly useful when multiple errors occur during a transaction.
+The `UnitOfWorkException` is a special exception class that provides detailed error information through a tree structure. 
+This is particularly useful when multiple errors occur during a transaction.
 
 Key features of the `UnitOfWorkException`:
 1. **Exception Tree**: Maintains a hierarchical structure of errors
