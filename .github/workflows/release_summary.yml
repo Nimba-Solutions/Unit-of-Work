@@ -1,0 +1,544 @@
+name: Release Summary
+
+on:
+  workflow_dispatch:
+    inputs:
+      latest_release:
+        description: "The tag to generate summary for"
+        required: true
+        type: string
+
+jobs:
+  generate-summary:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate Change Table
+        id: changes
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Create a Python script to process changes
+          cat > generate_table.py << 'EOF'
+          import os
+          import sys
+          import subprocess
+          import re
+          from datetime import datetime
+
+          def run_git_command(cmd, error_message):
+              """Run a git command safely with error handling"""
+              try:
+                  result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+                  return result.stdout.strip()
+              except subprocess.CalledProcessError as e:
+                  print(f"Error: {error_message}")
+                  print(f"Command failed: {' '.join(cmd)}")
+                  print(f"Error output: {e.stderr}")
+                  return None
+
+          def get_previous_release_tag(current_tag):
+              """Find the previous release tag before the current one"""
+              # Extract version from current tag (e.g., release/0.8.0.6 -> 0.8.0.6)
+              current_version = current_tag.split('/')[-1]
+              major_minor = '.'.join(current_version.split('.')[:2])  # e.g., 0.8
+              
+              # Get all release tags
+              cmd = ['git', 'tag', '-l', 'release/*']
+              all_tags = run_git_command(cmd, "Could not get release tags")
+              if not all_tags:
+                  return None
+                  
+              # Filter and sort release tags
+              release_tags = []
+              for tag in all_tags.split('\n'):
+                  version = tag.split('/')[-1]
+                  if version != current_version:  # Exclude current tag
+                      release_tags.append((tag, version))
+                      
+              # Sort by version numbers
+              release_tags.sort(key=lambda x: [int(n) for n in x[1].split('.')])
+              
+              # Find the latest release tag before current version
+              for tag, version in reversed(release_tags):
+                  if version < current_version:
+                      print(f"Found previous release tag: {tag}")
+                      return tag
+              
+              return None
+
+          def get_all_tags_between(start_tag, end_tag):
+              """Get all tags (including betas) between two release tags"""
+              # First get all tags
+              cmd = ['git', 'tag']
+              all_tags = run_git_command(cmd, "Could not get tags")
+              if not all_tags:
+                  return []
+                  
+              # Convert versions to comparable numbers
+              def version_to_tuple(tag):
+                  # Extract version from tag (e.g., release/0.8.0.6 -> 0.8.0.6 or beta/0.8.0.6 -> 0.8.0.6)
+                  version = tag.split('/')[-1]
+                  return [int(n) for n in version.split('.')]
+              
+              # Get start and end versions
+              start_version = version_to_tuple(start_tag)
+              end_version = version_to_tuple(end_tag)
+              
+              # Filter tags that are between start and end versions
+              result_tags = []
+              for tag in all_tags.split('\n'):
+                  if tag.strip():
+                      try:
+                          version = version_to_tuple(tag)
+                          if start_version <= version <= end_version:
+                              print(f"Debug: Including tag {tag} (version {version})")
+                              result_tags.append(tag)
+                          else:
+                              print(f"Debug: Excluding tag {tag} (version {version})")
+                      except (ValueError, IndexError) as e:
+                          print(f"Warning: Could not parse version from tag {tag}: {e}")
+                          continue
+              
+              return sorted(result_tags, key=version_to_tuple)
+
+          def get_release_notes(tag):
+              """Get release notes content for the tag"""
+              # Use GitHub API to get release notes
+              token = os.environ.get('GITHUB_TOKEN')
+              if not token:
+                  print("Error: GITHUB_TOKEN not set")
+                  return None
+              
+              # Get the repository from the environment
+              repo = os.environ.get('GITHUB_REPOSITORY')
+              if not repo:
+                  print("Error: GITHUB_REPOSITORY not set")
+                  return None
+              
+              # Use curl to get the release notes (since we already have it installed)
+              cmd = [
+                  'curl', '-s', '-H', f'Authorization: token {token}',
+                  f'https://api.github.com/repos/{repo}/releases/tags/{tag}'
+              ]
+              output = run_git_command(cmd, f"Could not fetch release notes for tag {tag}")
+              if not output:
+                  return None
+              
+              try:
+                  import json
+                  release_data = json.loads(output)
+                  return release_data.get('body', '')
+              except json.JSONDecodeError:
+                  print(f"Error: Invalid JSON response from GitHub API")
+                  return None
+
+          def combine_header_content(beta_notes_list):
+              """Combine content under matching headers from multiple beta releases"""
+              # Dictionary to store content by header
+              header_content = {}
+              current_header = None
+              
+              for notes in beta_notes_list:
+                  if not notes:
+                      continue
+                      
+                  for line in notes.split('\n'):
+                      # Skip empty lines
+                      if not line.strip():
+                          continue
+                          
+                      # Check if this is a header line
+                      if line.startswith('#'):
+                          current_header = line.strip()
+                          # Skip Installation Info sections
+                          if 'Installation Info' in current_header:
+                              current_header = None
+                          # Initialize header if not seen before
+                          if current_header and current_header not in header_content:
+                              header_content[current_header] = set()
+                      # If we have a current header and this isn't a link/URL line, add the content
+                      elif current_header and not line.startswith('http'):
+                          # Clean up the line (remove list markers, etc)
+                          content = line.strip().lstrip('*-').strip()
+                          if content:
+                              header_content[current_header].add(content)
+              
+              # Format the combined content
+              combined = []
+              for header, contents in header_content.items():
+                  if contents:  # Only add headers that have content
+                      combined.append(f"\n{header}\n")
+                      for content in sorted(contents):
+                          combined.append(f"- {content}")
+                      combined.append("")  # Add blank line after section
+              
+              return '\n'.join(combined)
+
+          def get_all_release_notes(current_tag):
+              """Get release notes - for release tags, get all notes between releases; for beta tags, get just that tag's notes"""
+              # For beta tags, just get the specific release notes
+              if current_tag.startswith('beta/'):
+                  print(f"Beta tag detected: {current_tag}, getting only its release notes")
+                  return get_release_notes(current_tag)
+                  
+              # For release tags, get all notes between this and previous release
+              if not current_tag.startswith('release/'):
+                  print(f"Error: Unknown tag format: {current_tag}")
+                  return None
+                  
+              # Get the current release notes first - we'll only keep the Installation Info section
+              current_notes = get_release_notes(current_tag)
+              if not current_notes:
+                  print(f"Error: Could not get release notes for {current_tag}")
+                  return None
+                  
+              # Extract Installation Info section from current release
+              install_info = ""
+              in_install_section = False
+              for line in current_notes.split('\n'):
+                  if '# Installation Info' in line:
+                      in_install_section = True
+                      install_info = line + '\n'
+                  elif in_install_section:
+                      if line.startswith('#'):
+                          in_install_section = False
+                      else:
+                          install_info += line + '\n'
+                  
+              # Find previous release tag to get beta tags in between
+              prev_release = get_previous_release_tag(current_tag)
+              if not prev_release:
+                  print("Warning: No previous release tag found")
+                  return current_notes
+                  
+              print(f"Getting beta tags between {prev_release} and {current_tag}")
+              all_tags = get_all_tags_between(prev_release, current_tag)
+              
+              # Filter to ONLY include beta tags
+              beta_tags = [tag for tag in all_tags if tag.startswith('beta/')]
+              print(f"Debug: Found beta tags: {beta_tags}")
+              
+              # Collect notes from all beta releases
+              beta_notes = []
+              pr_numbers = set()
+              for tag in beta_tags:
+                  notes = get_release_notes(tag)
+                  if notes:
+                      beta_notes.append(notes)
+                      # Extract PR numbers from this beta's notes
+                      numbers = extract_pr_numbers(notes)
+                      pr_numbers.update(numbers)
+              
+              # Combine content from all beta releases
+              combined_content = combine_header_content(beta_notes)
+              
+              # Store PR numbers in environment for later use
+              if pr_numbers:
+                  os.environ['FOUND_PR_NUMBERS'] = ','.join(pr_numbers)
+                  print(f"Debug: Found PR numbers from beta releases: {pr_numbers}")
+              
+              # Return combined notes: aggregated beta content + installation info
+              return combined_content + "\n" + install_info if combined_content else current_notes
+
+          def extract_pr_numbers(release_notes):
+              """Extract PR numbers from markdown links in release notes"""
+              if not release_notes:
+                  print("Warning: Release notes are empty")
+                  return []
+              
+              print(f"Debug: Processing release notes:\n{release_notes}")
+              print(f"Debug: Release notes type: {type(release_notes)}")
+              print(f"Debug: Release notes length: {len(release_notes)}")
+              
+              # Try multiple patterns
+              patterns = [
+                  r'\[\[PR(\d+)\]\(https://github\.com/[^)]+\)\]',  # [[PR123](https://github.com/...)]
+                  r'\[PR[- ]?(\d+)\]',  # [PR123] or [PR-123] or [PR 123]
+                  r'PR[- ]?(\d+)',      # PR123 or PR-123 or PR 123
+                  r'#(\d+)',            # #123
+                  r'pull/(\d+)',        # pull/123 (from URLs)
+                  r'pull request #(\d+)' # "pull request #123" (case insensitive)
+              ]
+              
+              all_numbers = []
+              for pattern in patterns:
+                  print(f"Debug: Trying pattern: {pattern}")
+                  matches = re.findall(pattern, release_notes, re.IGNORECASE)
+                  if matches:
+                      print(f"Debug: Found PR numbers using pattern {pattern}: {matches}")
+                      all_numbers.extend(matches)
+                  else:
+                      print(f"Debug: No matches found for pattern {pattern}")
+              
+              # Remove duplicates and sort
+              unique_numbers = sorted(set(all_numbers))
+              if not unique_numbers:
+                  print("Warning: No PR numbers found with any pattern")
+                  print("Debug: Content sections:")
+                  for line in release_notes.split('\n'):
+                      if line.strip():
+                          print(f"Debug: Line: {line}")
+              else:
+                  print(f"Debug: Final unique PR numbers: {unique_numbers}")
+              
+              return unique_numbers
+
+          def get_pr_commits(pr_number):
+              """Get all commits from a PR"""
+              # First get the merge commit to find PR's head and base
+              cmd = ['git', 'log', '--grep', f'Merge pull request #{pr_number}', '--format=%H', '-n', '1']
+              merge_sha = run_git_command(cmd, f"Could not find merge commit for PR #{pr_number}")
+              print(f"Debug: Found merge commit for PR #{pr_number}: {merge_sha}")
+              
+              if not merge_sha:
+                  return []
+              
+              # Get the parent commits of the merge
+              cmd = ['git', 'log', '-1', '--format=%P', merge_sha]
+              parents = run_git_command(cmd, "Could not get parent commits")
+              if not parents:
+                  return []
+              
+              parent_shas = parents.split()
+              if len(parent_shas) < 2:  # Not a merge commit?
+                  return []
+              
+              # parent_shas[0] is the base branch commit
+              # parent_shas[1] is the PR branch's head commit
+              # Get all commits between them with their URLs
+              cmd = ['git', 'log', '--format=%H|%aI|%an|%s', f'{parent_shas[0]}..{parent_shas[1]}']
+              commits = run_git_command(cmd, f"Could not get commits for PR #{pr_number}")
+              print(f"Debug: Found commits in PR #{pr_number}: {commits}")
+              
+              if not commits:
+                  return []
+              
+              # Get the repository URL for creating commit links
+              cmd = ['git', 'config', '--get', 'remote.origin.url']
+              repo_url = run_git_command(cmd, "Could not get repository URL")
+              if repo_url:
+                  # Convert SSH URL to HTTPS URL if needed
+                  repo_url = repo_url.strip()
+                  if repo_url.startswith('git@'):
+                      repo_url = repo_url.replace(':', '/').replace('git@', 'https://')
+                  if repo_url.endswith('.git'):
+                      repo_url = repo_url[:-4]
+              
+              commit_list = []
+              for commit in commits.split('\n'):
+                  if commit:
+                      sha = commit.split('|')[0]
+                      commit_url = f"{repo_url}/commit/{sha}" if repo_url else None
+                      commit_list.append((commit, commit_url))
+              
+              return commit_list
+
+          def get_commit_changes(commit_info):
+              """Get file changes for a specific commit"""
+              if not commit_info[0]:  # commit_info is now a tuple (commit_data, commit_url)
+                  return []
+              
+              # Parse the commit info
+              try:
+                  commit_sha, date_str, author, message = commit_info[0].split('|')
+                  commit_url = commit_info[1]
+              except ValueError:
+                  print(f"Error parsing commit info: {commit_info}")
+                  return []
+              
+              # Get the changes for this specific commit
+              cmd = ['git', 'show', '--name-status', '--format=', commit_sha]
+              files_output = run_git_command(cmd, f"Could not get file changes for {commit_sha}")
+              print(f"Debug: File changes for {commit_sha}: {files_output}")
+              
+              if not files_output:
+                  return []
+              
+              try:
+                  date = datetime.fromisoformat(date_str).strftime('%Y-%m-%d')
+                  changes = []
+                  
+                  # Parse file changes
+                  for line in files_output.split('\n'):
+                      if not line.strip():
+                          continue
+                      try:
+                          parts = line.split('\t')
+                          status = parts[0]
+                          file_path = parts[-1]  # Last part is always the file path
+                          
+                          operation = {
+                              'A': 'Added',
+                              'M': 'Modified',
+                              'D': 'Deleted',
+                              'R': 'Renamed',
+                              'C': 'Copied'
+                          }.get(status[0], 'Modified')
+                          
+                          changes.append({
+                              'pr_number': None,  # Will be set later
+                              'date': date,
+                              'operation': operation,
+                              'file_path': file_path,
+                              'message': message,
+                              'author': author,
+                              'commit_url': commit_url
+                          })
+                      except (ValueError, IndexError) as e:
+                          print(f"Error: Invalid file change format in line: {line}")
+                          continue
+                  
+                  return changes
+              except (ValueError, IndexError) as e:
+                  print(f"Error parsing commit data: {e}")
+                  return []
+
+          def format_changes_table(all_changes):
+              """Format all changes into a single markdown table and CSV file"""
+              if not all_changes:
+                  return "No file changes found."
+              
+              # Generate markdown table
+              table = [
+                  "| PR | File Path | Commit | Operation | Author | Date |",
+                  "|-------|-----------|---------|-----------|---------|------|"
+              ]
+              
+              # Also create CSV content
+              import csv
+              from io import StringIO
+              
+              csv_output = StringIO()
+              csv_writer = csv.writer(csv_output)
+              csv_writer.writerow(['PR', 'File Path', 'Commit Message', 'Commit URL', 'Operation', 'Author', 'Date'])
+              
+              for change in sorted(all_changes, key=lambda x: (x['date'], x['pr_number'])):
+                  # Create commit link if URL is available
+                  commit_cell = f"[{change['message']}]({change['commit_url']})" if change['commit_url'] else change['message']
+                  
+                  # Add row to markdown table
+                  row = "| #{} | {} | {} | {} | {} | {} |".format(
+                      change['pr_number'],
+                      f"`{change['file_path']}`",
+                      commit_cell,
+                      change['operation'],
+                      change['author'],
+                      change['date']
+                  )
+                  table.append(row)
+                  
+                  # Add row to CSV
+                  csv_writer.writerow([
+                      f"#{change['pr_number']}",
+                      change['file_path'],
+                      change['message'],
+                      change['commit_url'] or '',
+                      change['operation'],
+                      change['author'],
+                      change['date']
+                  ])
+              
+              # Save CSV to file
+              with open('Audit.csv', 'w', newline='') as f:
+                  f.write(csv_output.getvalue())
+              
+              return '\n'.join(table)
+
+          if __name__ == '__main__':
+              tag = os.environ.get('latest_release')
+              if not tag:
+                  print("Error: No latest_release provided")
+                  sys.exit(1)
+
+              # Get release notes (and collect PR numbers from betas if this is a release tag)
+              release_notes = get_all_release_notes(tag)
+              if not release_notes:
+                  print("Error: Could not get release notes")
+                  sys.exit(1)
+              
+              # For release tags, get PR numbers from stored environment variable
+              pr_numbers = []
+              if tag.startswith('release/'):
+                  stored_prs = os.environ.get('FOUND_PR_NUMBERS', '')
+                  if stored_prs:
+                      pr_numbers = stored_prs.split(',')
+                  else:
+                      print("Warning: No PR numbers found in beta releases")
+              else:
+                  # For beta tags, extract PR numbers from its own notes
+                  pr_numbers = extract_pr_numbers(release_notes)
+              
+              if not pr_numbers:
+                  print(f"Error: No PR numbers found for {tag}")
+                  sys.exit(1)
+              
+              # Collect all changes in a single list
+              all_changes = []
+              for pr_number in pr_numbers:
+                  commits = get_pr_commits(pr_number)
+                  if commits:
+                      for commit in commits:
+                          changes = get_commit_changes(commit)
+                          # Add PR number to each change
+                          for change in changes:
+                              change['pr_number'] = pr_number
+                          all_changes.extend(changes)
+              
+              # Write the updated release notes with the Changed Files table
+              with open('pr_tables.txt', 'w') as f:
+                  # First write the original release notes
+                  f.write(release_notes)
+                  
+                  # Then append the single table with all changes
+                  if all_changes:
+                      f.write("\n\n# Changed Files\n\n")
+                      f.write(format_changes_table(all_changes))
+                      f.write("\n\nA CSV file with these changes is available in the release assets.")
+                      f.write("\n")
+                  else:
+                      f.write("\n\n# Changed Files\n\nNo changes found in any PR.\n")
+          EOF
+
+          # Run the script with the provided release
+          latest_release="${{ inputs.latest_release }}" python generate_table.py
+
+          # Use the combined content for the release
+          if [ -f pr_tables.txt ]; then
+            {
+              echo 'summary<<EOSUMMARY'
+              cat pr_tables.txt
+              echo 'EOSUMMARY'
+            } >> "$GITHUB_OUTPUT"
+          else
+            echo "Error: No output file generated"
+            exit 1
+          fi
+
+      - name: Update Release Notes
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ inputs.latest_release }}
+          body: ${{ steps.changes.outputs.summary }}
+          files: Audit.csv
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+permissions:
+  actions: write
+  checks: write
+  contents: write
+  deployments: write
+  id-token: write
+  issues: write
+  discussions: write
+  packages: write
+  pages: write
+  pull-requests: write
+  repository-projects: write
+  security-events: write
+  statuses: write
