@@ -165,7 +165,6 @@ try {
 ### JSON Serialization
 The `UnitOfWorkException` sports a handy toJSON() method to make it easier to work with programmatically (especially if you ship your logs to an external system):
 
-#### For example, the following code block...
 ```java
 try {
     UnitOfWork uow = new UnitOfWork();
@@ -176,7 +175,8 @@ try {
     String jsonError = e.toJson();
 }
 ```
-... might produce something like this...
+
+This produces a clean, nested array structure:
 ```json
 [
   "Multiple errors occurred during transaction",
@@ -197,6 +197,50 @@ try {
     ]
   ]
 ]
+```
+
+If you need stack traces in your JSON output, you can include them like this:
+```java
+try {
+    UnitOfWork uow = new UnitOfWork();
+    // ... register operations ...
+    uow.commitWork();
+} catch (UnitOfWork.UnitOfWorkException e) {
+    // Include stack trace in the JSON output
+    Map<String, Object> errorWithStack = new Map<String, Object>{
+        'message' => e.getMessage(),
+        'stackTrace' => e.getStackTraceString(),
+        'tree' => JSON.deserializeUntyped(e.toJson())
+    };
+    String jsonWithStack = JSON.serialize(errorWithStack);
+}
+```
+
+Which produces:
+```json
+{
+  "message": "Multiple errors occurred during transaction",
+  "stackTrace": "Class.UnitOfWork.doWork: line 123, column 1\nClass.UnitOfWork.commitWork: line 45, column 1",
+  "tree": [
+    "Multiple errors occurred during transaction",
+    [
+      [
+        "Failed to insert Account records",
+        [
+          ["Record 0: Required fields are missing: [Name]"],
+          ["Record 1: Invalid email address: test@invalid"]
+        ]
+      ],
+      [
+        "Failed to insert Contact records",
+        [
+          ["Record 0: Please enter either a Phone number or an Email address"],
+          ["Record 1: Parent Account was not inserted"]
+        ]
+      ]
+    ]
+  ]
+}
 ```
 
 Key features of the UnitOfWorkException:
