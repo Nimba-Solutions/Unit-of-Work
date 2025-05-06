@@ -262,56 +262,21 @@ Key features of the UnitOfWorkException:
 ## 📁 Project Structure
 
 ```
-unit-of-work/
-├── force-app/          # Salesforce source code
-│   └── main/default/   # Main source code directory
-├── robot/             # Robot Framework test automation
-│   └── Unit-of-Work/  # Test suites and resources
-├── datasets/          # Test data sets
-├── orgs/              # Scratch org configurations
-└── category/          # Project categorization
+📁 unit-of-work/
+ ├── 📁 force-app/          # Salesforce source code
+ │   └── 📁 main/default/   # Main source code directory
+ ├── 📁 orgs/               # Scratch org configurations
+ └── 📄 cumulusci.yml       # Project configuration
 ```
-
-## 🛠️ Prerequisites
-
-- [Salesforce CLI](https://developer.salesforce.com/tools/sfdx_cli)
-- [CumulusCI](https://cumulusci.readthedocs.io/) (version 3.78.0 or higher)
-- Python 3.x
-- Git
 
 ## 🏗️ Development Setup
 
-1. Clone the repository:
+1. [Set up CumulusCI](https://cumulusci.readthedocs.io/en/latest/tutorial.html)
+2. Clone the repository:
    ```bash
    git clone [repository-url]
    cd unit-of-work
    ```
-
-2. Set up CumulusCI:
-   - Follow the [CumulusCI setup guide](https://cumulusci.readthedocs.io/en/latest/tutorial.html)
-   - Ensure you have the required dependencies installed
-
-3. Create and configure a scratch org:
-   ```bash
-   cci flow run dev_org --org dev
-   ```
-
-4. Open the org in your browser:
-   ```bash
-   cci org browser dev
-   ```
-
-## 🧪 Testing
-
-The project includes Robot Framework tests for both API and UI operations. To run the tests:
-
-```bash
-# Run all tests
-cci robot run
-
-# Generate test documentation
-cci robot testdoc
-```
 
 ## 🤝 Contributing
 
@@ -324,15 +289,7 @@ cci robot testdoc
 3. Push to your feature branch
 4. Create a Pull Request
 
-## 📝 License
-
-[Add your license information here]
-
-## 💬 Support
-
-[Add support information here]
-
 ---
 <div align="center">
-Made with ❤️ by [Your Name/Team]
+Made with ❤️ by Nimba
 </div>
