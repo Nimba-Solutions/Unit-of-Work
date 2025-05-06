@@ -15,6 +15,8 @@ This implementation provides a lightweight alternative with zero dependencies, m
 - Handle complex relationships between records
 - Keep your code type-safe and maintainable
 
+---
+
 ## 🔄 Unit of Work Pattern Flow
 
 ```mermaid
