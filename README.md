@@ -174,7 +174,7 @@ try {
 ```
 
 ### JSON Serialization
-The `UnitOfWorkException` sports a handy toJSON() method to make it easier to work with programmatically (especially if you ship your logs to an external system):
+The `UnitOfWorkException` sports a handy `toJSON()` method to make it easier to work with programmatically (especially if you ship your logs to an external system):
 
 ```java
 try {
