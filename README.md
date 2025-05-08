@@ -8,12 +8,12 @@ The Unit of Work pattern was popularized by the excellent [Apex Commons](https:/
 
 While powerful, Apex Commons can sometimes be cumbersome to use in smaller projects, projects with significant legacy code, or projects that are simply incompatible with `fflib`'s idioms.
 
-This implementation provides a lightweight alternative with zero dependencies, making it easier to:
+This implementation is an attempt to provide a lightweight alternative with zero dependencies, and a little bit of syntactical sugar that aim to simplify:
 
-- Introduce additional safety (e.g. validation, rollback) to DML operations
-- Share transactions across multiple services
-- Handle complex relationships between records
-- Keep your code type-safe and maintainable
+- Introducing additional safety (e.g. validation, rollback) to DML operations
+- Sharing transactions across multiple services
+- Managing complex relationships between records
+- Keeping your code type-safe and maintainable
 
 ---
 
