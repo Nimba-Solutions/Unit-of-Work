@@ -91,6 +91,8 @@ sequenceDiagram
 
 ## 📖 Usage Patterns
 
+This project tries to align with the nomenclature found in the Apex Commons framework. For example, you both implementations expect you to call `uow.registerNew(myRecord)` when you want to insert a new record. Please review the following examples.
+
 ### Basic Usage
 ```java
 // Create a new UnitOfWork instance
