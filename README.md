@@ -10,7 +10,7 @@ While powerful, Apex Commons can sometimes be cumbersome to use in smaller proje
 
 This implementation is an attempt to provide a lightweight alternative with zero dependencies, and a little bit of syntactical sugar that aim to simplify:
 
-- Standardizing operations before, during, and after DML
+- Standardizing DML operations
 - Sharing transactions across multiple services
 - Managing complex relationships between records
 - Keeping your code type-safe and maintainable
