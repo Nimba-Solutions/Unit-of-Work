@@ -91,7 +91,7 @@ sequenceDiagram
 
 ## 📖 Usage Patterns
 
-This project tries to align with the nomenclature found in the Apex Commons framework. For example, you both implementations expect you to call `uow.registerNew(myRecord)` when you want to insert a new record. Please review the following examples.
+This project tries to align with the nomenclature found in the Apex Commons framework. For example, you both implementations expect you to call `uow.registerNew(myRecord)` when you want to insert a new record. Please review the following examples and note that, although we've attempted to maintain a similar facade, the implementations of these services are quite different from those found in Apex Commons (`fflib`). 
 
 ### Basic Usage
 ```java
